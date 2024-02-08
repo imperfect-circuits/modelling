@@ -1,0 +1,7 @@
+import bpy
+#Switch to Pose Mode
+sel = bpy.context.selected_pose_bones
+
+for bone in sel:
+    name = bone.name
+    bpy.context.object.pose.bones[name].constraints["Copy Transforms"].subtarget = name
