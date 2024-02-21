@@ -3,7 +3,9 @@ Shader "Custom/TransparentMoving"
     Properties
     {
         _Color ("Color", Color) = (1,1,1,1)
-        _DistortionAmount ("Distortion Amount", Range(0,.1)) = 0.05
+        _DistortionStrength ("Distortion Strength", Range(0,.1)) = 0.05
+        _DistortionDensity ("Distortion Density", Range(0,1)) = .5
+        _DistortionSpeed ("Speed", Range(0,1)) = .5
     }
     SubShader
     {
@@ -26,7 +28,9 @@ Shader "Custom/TransparentMoving"
 
         // Properties
         fixed4 _Color;
-        half _DistortionAmount;
+        half _DistortionStrength;
+        half _DistortionDensity;
+        half _DistortionSpeed;
 
         // structs (see following for allowed inputs:
         // https://docs.unity3d.com/Manual/SL-VertexProgramInputs.html)
@@ -56,7 +60,28 @@ Shader "Custom/TransparentMoving"
 
         // functions
         void vert(inout vertInput v) {
-            v.vertex.xyz += normalize(v.normal) * _DistortionAmount * (_SinTime.z+1);
+            // sum of sines modulating the wobble
+            float frequency = 1/_DistortionDensity;
+            float speed = _DistortionSpeed;
+            float amplitude = _DistortionStrength;
+            float adjustment = 0;
+
+            float count = 0;
+
+            while (count < 3) {
+                // calculate wave adjustment for loop
+                adjustment += amplitude*sin(UNITY_TWO_PI*(v.vertex.y*frequency+_Time.y*speed*frequency));
+
+                // adjust params for next sine wave
+                frequency *= 2;
+                speed *= .5;
+                amplitude *= .5;
+
+                // next count
+                count++;
+            } ;
+
+            v.vertex.xyz += normalize(v.normal)*adjustment;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
