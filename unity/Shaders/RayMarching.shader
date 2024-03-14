@@ -50,8 +50,8 @@ Shader "Custom/Unlit/RayMarching"
             ///// ray marching functions
             float GetDist(float3 vertex) {
                 // sphere pos
-                float3 spherePos = float3(0,0,5);
-                float sphereRadius = 1;
+                float3 spherePos = float3(0,0,1);
+                float sphereRadius = .05;
 
                 return distance(vertex, spherePos) - sphereRadius;
             }
@@ -62,10 +62,11 @@ Shader "Custom/Unlit/RayMarching"
                 // loop for ma number of steps
                 for (results.numSteps = 0; results.numSteps < MAX_STEPS; results.numSteps++) {
                     // get distance to surface
-                    float surfDistance = GetDist(ro+rd*results.distanceFromRo);
+                    float3 curPosition = ro+rd*results.distanceFromRo;
+                    float surfDistance = GetDist(curPosition);
 
                     // if close enough, exit
-                    if (surfDistance < MIN_SURFDIST) {
+                    if (surfDistance < MIN_SURFDIST || results.distanceFromRo > MAX_DIST) {
                         break;
                     }
 
@@ -86,7 +87,7 @@ Shader "Custom/Unlit/RayMarching"
                 UNITY_TRANSFER_FOG(o,o.vertex);
 
                 o.ro = mul(unity_WorldToObject,float4(_WorldSpaceCameraPos,1));
-                o.rd = o.vertex-o.ro;
+                o.rd = v.vertex-o.ro;
                 return o;
             }
             fixed4 frag (v2f i) : SV_Target
@@ -98,7 +99,7 @@ Shader "Custom/Unlit/RayMarching"
                 RayMarchResults r = RayMarch(i.ro, normalize(i.rd));
 
                 // discard pixel if nothing hit
-                if (r.numSteps == MAX_STEPS) {
+                if (r.numSteps == MAX_STEPS || r.distanceFromRo > MAX_DIST) {
                     clip(-1);
                 }
                 // otherwise set to white
