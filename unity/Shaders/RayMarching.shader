@@ -42,6 +42,7 @@ Shader "Custom/Unlit/RayMarching"
             {
                 float distanceFromRo;
                 int numSteps;
+                float3 curPosition;
             };
             sampler2D _MainTex;
             float4 _MainTex_ST;
@@ -50,7 +51,7 @@ Shader "Custom/Unlit/RayMarching"
             ///// ray marching functions
             float GetDist(float3 vertex) {
                 // sphere pos
-                float3 spherePos = float3(0,0,1);
+                float3 spherePos = (0,0,0);
                 float sphereRadius = .05;
 
                 return distance(vertex, spherePos) - sphereRadius;
@@ -62,8 +63,8 @@ Shader "Custom/Unlit/RayMarching"
                 // loop for ma number of steps
                 for (results.numSteps = 0; results.numSteps < MAX_STEPS; results.numSteps++) {
                     // get distance to surface
-                    float3 curPosition = ro+rd*results.distanceFromRo;
-                    float surfDistance = GetDist(curPosition);
+                    results.curPosition = ro+rd*results.distanceFromRo;
+                    float surfDistance = GetDist(results.curPosition);
 
                     // if close enough, exit
                     if (surfDistance < MIN_SURFDIST || results.distanceFromRo > MAX_DIST) {
@@ -75,6 +76,18 @@ Shader "Custom/Unlit/RayMarching"
                 }
 
                 return results;
+            }
+
+            ///// Lighting functions
+            float3 GetNormal(float3 pos) {
+                // normal in a signed distance field is the gradiant, a vector
+                // of the partial differentials of each dimension
+                float2 h = float2(0.001, 0);
+                return normalize(float3(
+                    GetDist(pos+h.xyy)-GetDist(pos-h.xyy),
+                    GetDist(pos+h.yxy)-GetDist(pos-h.yxy),
+                    GetDist(pos+h.yyx)-GetDist(pos-h.yyx)
+                ));
             }
 
             ///// shader functinos
@@ -90,10 +103,10 @@ Shader "Custom/Unlit/RayMarching"
                 o.rd = v.vertex-o.ro;
                 return o;
             }
-            fixed4 frag (v2f i) : SV_Target
+            float4 frag (v2f i) : SV_Target
             {
                 // // sample the texture
-                fixed4 col = fixed4(0,0,0,0);//tex2D(_MainTex, i.uv);
+                float4 col = (0,0,0,0);//tex2D(_MainTex, i.uv);
 
                 // ray march this clip pos
                 RayMarchResults r = RayMarch(i.ro, normalize(i.rd));
@@ -104,7 +117,8 @@ Shader "Custom/Unlit/RayMarching"
                 }
                 // otherwise set to white
                 else {
-                    col.rgb = fixed3(1,1,1);
+                    col.rgb = (1,1,1);
+                    col.rgb = GetNormal(r.curPosition);
                 }
                 // apply fog
                 UNITY_APPLY_FOG(i.fogCoord, col);
